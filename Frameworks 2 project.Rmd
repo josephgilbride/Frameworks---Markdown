@@ -31,6 +31,7 @@ goodrows = dat[,30:38]
 rawrows = apply(rawrows,2,function(x)strip(x, char.keep = '"',digit.remove = FALSE, apostrophe.remove = FALSE, lower.case = FALSE)
 
 dat = cbind(rawrows,goodrows)
-dat = gsub('listactdescription', '', dat)
-dat = gsub('publicLawcongressCode', ' Public Law ', dat)
-dat = gsub('number', ' number ', dat)
+
+dat = gsub('"list"', '', dat)
+dat = gsub('"act"', '', dat)
+dat = gsub('"description"', '', dat)
