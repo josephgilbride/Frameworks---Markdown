@@ -28,7 +28,7 @@ library(textclean)
 rawrows = dat[,1:30]
 goodrows = dat[,30:38]
 
-rawrows = apply(rawrows,2,function(x)strip(x, digit.remove = FALSE, apostrophe.remove = FALSE, lower.case = FALSE)
+rawrows = apply(rawrows,2,function(x)strip(x, char.keep = '"',digit.remove = FALSE, apostrophe.remove = FALSE, lower.case = FALSE)
 
 dat = cbind(rawrows,goodrows)
 dat = gsub('listactdescription', '', dat)
