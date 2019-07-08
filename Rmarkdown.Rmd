@@ -26,5 +26,7 @@ This step requires the 'textclean' package.  We are then going to replace all in
 ```{r}
 
 library(textclean)
-dat = strip(dat)
-gsub('description', '|', test2)
+dat = strip(dat, digit.remove = FALSE, apostrophe.remove = FALSE lower.case = FALSE)
+dat = gsub('listactdescription', '', dat)
+dat = gsub('publicLawcongressCode', ' Public Law ', dat)
+dat = gsub('number', ' number ', dat)
