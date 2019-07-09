@@ -1,0 +1,43 @@
+data = read.csv("AssistanceListings_DataGov_PUBLIC_CURRENT_20190706 - AssistanceListings_DataGov_PUBLIC_CURRENT_20190706.csv",
+                stringsAsFactors = F, sep = ",", header = TRUE)
+head(data)
+summary(data)
+#head(data)
+rawrows = data[,1:30]
+goodrows =data[,30:38]
+
+frame_tokens = list("list", "act","description","awarded","lump","other","isApplicable")
+rawrows = apply(rawrows,2,function(x)strip(x, char.keep = '"', digit.remove = FALSE,
+                                           apostrophe.remove = FALSE, lower.case = FALSE))
+rawrows = apply(rawrows, 2, function(x)replace_tokens(x, frame_tokens))
+data = cbind(rawrows,goodrows)
+print(data)
+tail(data, 5)
+data_test = data
+
+#function to return the last couple of n characters
+substrRight <- function(x, n){
+  substr(x, nchar(x)-n+1, nchar(x))
+}
+substrRight(data_test$Credentials.Documentation..083., 4)
+
+df_test <- data.frame(data_test)
+#trying to extract and keep only a given string
+keep_element(endsWith(df_test$Credentials.Documentation..083., 
+                      "false"))
+
+   {
+  keep_element(df_test$Credentials.Documentation..083., "false")
+}
+
+keep_element(data_test$Credentials.Documentation..083., )
+
+for (val in data_test){
+  if(endsWith(data_test$Credentials.Documentation..083., "true"){
+    data_test$Credentials.Documentation..083.<- 
+      drop_element(data_test$Credentials.Documentation..083., "true")
+    break
+  } else {
+    return(data_test$Credentials.Documentation..083.)
+  }
+}
