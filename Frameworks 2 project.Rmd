@@ -25,13 +25,22 @@ This step requires the 'textclean' package.  We are then going to replace all in
 
 ```{r}
 library(textclean)
+```
+
+#Define Tokens
+
+```{r}
+tokens = list("list","act","description","awarded","lump","other","isApplicable")
+
 rawrows = dat[,1:30]
 goodrows = dat[,30:38]
+```
 
-rawrows = apply(rawrows,2,function(x)strip(x, char.keep = '"',digit.remove = FALSE, apostrophe.remove = FALSE, lower.case = FALSE)
+#Clean data
+```{r}
+
+rawrows = apply(rawrows,2,function(x)strip(x, char.keep = '"',digit.remove = FALSE, apostrophe.remove = FALSE, lower.case = FALSE))
+                
+rawrows = apply(rawrows,2,function(x)replace_tokens(x, tokens))                
 
 dat = cbind(rawrows,goodrows)
-
-dat = gsub('"list"', '', dat)
-dat = gsub('"act"', '', dat)
-dat = gsub('"description"', '', dat)
