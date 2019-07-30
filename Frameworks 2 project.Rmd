@@ -10,7 +10,7 @@ knitr::opts_chunk$set(echo = TRUE)
 #Define dataset
 
 ```{r}
-dat = AssistanceListings_DataGov_PUBLIC_CURRENT
+dat = AssistanceListings_DataGov_PUBLIC_CURRENT_20190706_AssistanceListings_DataGov_PUBLIC_CURRENT_20190706
 ```
 
 #Clean Data
@@ -29,8 +29,9 @@ library(textclean)
 
 tokens = list("list","act","description","awarded","lump","other","isApplicable")
 
-rawrows = dat[,3:30]
-goodrows = dat[,30:38]
+idrows = dat[,0:2]
+rawrows = dat[,3:26]
+goodrows = dat[,27:37]
 ```
 
 #Clean data
@@ -42,7 +43,11 @@ rawrows = apply(rawrows,2,function(x)replace_tokens(x, tokens))
 rawrows = gsub('" ',"",rawrows)
 rawrows = apply(rawrows,2,function(x)add_missing_endmark(x))
 
-dat = cbind(rawrows,goodrows)
+
+rawrows = apply(rawrows,2,function(x)strip(x,digit.remove = FALSE, apostrophe.remove = FALSE, lower.case = FALSE))
+
+
+dat = cbind(idrows,rawrows,goodrows)
 
 ```
 
@@ -93,4 +98,15 @@ clean_data = Clean_Text_Block(rawrows$`Authorization (040)`)
 
 ```
 
-We are now ready to run a cross-variable analyses using the cataloged words in each column.  In this instance, the dataset of rawrows contains most of the text-rich content that we will continue to use later on...
+We are now ready to run a cross-variable analyses using the cataloged words in each column.  In this instance, the dataset of rawrows contains most of the text-rich content.
+
+#Sentiment Analysis
+
+```{r}
+
+library(syuzhet)
+
+mat = as.matrix(apply(dat,2,function(x)get_sentiment(x, method="syuzhet")))
+
+mat <- cbind(mat, Total = rowSums(mat))
+```
