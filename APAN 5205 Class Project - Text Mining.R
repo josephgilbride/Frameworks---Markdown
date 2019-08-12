@@ -44,9 +44,9 @@ objectives %>%
     group_by(Program.Number)%>%
     unnest_tokens(output=word,input=Objectives..050.)%>%
     inner_join(get_sentiments('afinn'))%>%
-    summarize(reviewSentiment = mean(value))%>%
+    summarize(Objectives_Sentiment = mean(value))%>%
     ungroup()%>%
-    ggplot(aes(x=reviewSentiment,fill=reviewSentiment>0))+
+    ggplot(aes(x=Objectives_Sentiment,fill=Objectives_Sentiment>0))+
     geom_histogram(binwidth = 0.1)+
     scale_x_continuous(breaks=seq(-5,5,1))+scale_fill_manual(values=c('tomato','seagreen'))+
     guides(fill=F)
@@ -96,7 +96,7 @@ applicants%>%
 # Emotions of objectives
 applicants%>%
     group_by(Program.Number)%>%
-    unnest_tokens(output = word, input = application_conc)%>%
+    unnest_tokens(output = word, input = appli)%>%
     inner_join(nrc)%>%
     group_by(sentiment)%>%
     count()%>%
@@ -107,9 +107,9 @@ applicants %>%
     group_by(Program.Number)%>%
     unnest_tokens(output=word,input=application_conc)%>%
     inner_join(get_sentiments('afinn'))%>%
-    summarize(reviewSentiment = mean(value))%>%
+    summarize(Application_Sentiment = mean(value))%>%
     ungroup()%>%
-    ggplot(aes(x=reviewSentiment,fill=reviewSentiment>0))+
+    ggplot(aes(x=Application_Sentiment,fill=Application_Sentiment>0))+
     geom_histogram(binwidth = 0.1)+
     scale_x_continuous(breaks=seq(-5,5,1))+scale_fill_manual(values=c('tomato','seagreen'))+
     guides(fill=F)
