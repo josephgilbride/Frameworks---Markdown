@@ -1,0 +1,223 @@
+
+title: "R Markdown - Frameworks 2 project"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+#Define dataset
+
+```{r}
+gov_data= AssistanceListings_DataGov_PUBLIC_CURRENT_20190706_AssistanceListings_DataGov_PUBLIC_CURRENT_20190706
+```
+
+#Clean Data
+
+This step requires the 'textclean' package.  We are then going to replace all instances of extra text in the file.
+
+```{r}
+library(textclean)
+library(tidytext)
+library(dplyr)
+library(tm)
+```
+
+#Define Tokens and Split data
+
+```{r}
+
+tokens = c("list","act","description","awarded","lump","other","isApplicable", "est", stopwords('english'))
+
+goodrows = cbind(gov_data[,0:2], gov_data[,37])
+rawrows = gov_data[,3:38] 
+rawrows$`Obligations (122)` = NULL
+rawrows$URL = NULL
+predrow = gov_data[,25]
+```
+
+#Clean text columns
+```{r}
+
+rawrows = apply(rawrows,2,function(x)add_comma_space(x))
+rawrows = apply(rawrows,2,function(x)strip(x,char.keep = '"',digit.remove = FALSE, apostrophe.remove = FALSE, lower.case = FALSE))
+rawrows = apply(rawrows,2,function(x)replace_tokens(x, tokens)) 
+rawrows = gsub('" ',"",rawrows)
+rawrows = apply(rawrows,2,function(x)add_missing_endmark(x))
+rawrows = apply(rawrows,2,function(x)strip(x,digit.remove = FALSE, apostrophe.remove = FALSE, lower.case = FALSE))
+rawrows = as.data.frame(rawrows)
+
+```
+
+#Clean numeric columns
+```{r}
+library(splitstackshape)
+
+predrow = apply(predrow,2,function(x)replace_tokens(x, tokens))
+predrow = as.data.frame(predrow)
+predata = cSplit(predrow, "Obligations (122)", sep="FY ", type.convert=FALSE)
+predata = predata [,3:183]
+predata = apply(predata,2,function(x)substring(x, 3))
+predata = apply(predata,2,function(x)strip(x,char.keep = '.',digit.remove = FALSE, apostrophe.remove = FALSE, lower.case = FALSE))
+predata = gsub(' ',"",predata)
+predata = gsub("[^0-9.-]", "", predata)
+predata = apply(predata,2,function(x)as.numeric(x))
+predata[is.na(predata)] <- 0
+predata = predata[,1]
+predata = as.data.frame(predata)
+
+
+```
+
+#Text Processing
+
+The following functions create a list for loading into a corpus:
+```{r}
+Clean_String <- function(string){
+    temp <- tolower(string)
+    temp <- stringr::str_replace_all(temp,"[^a-zA-Z\\s]", " ")
+    temp <- stringr::str_replace_all(temp,"[\\s]+", " ")
+    temp <- stringr::str_split(temp, " ")[[1]]
+    indexes <- which(temp == "")
+    if(length(indexes) > 0){
+      temp <- temp[-indexes]
+    } 
+    return(temp)
+}
+
+Clean_Text_Block <- function(text){
+    indexes <- which(text == "")
+    if (length(indexes) > 0) {
+        text <- text[-indexes]
+    }
+    if (length(text) == 0) {
+        cat("There was no text in this document! \n")
+        to_return <- list(num_tokens = 0, 
+		                     unique_tokens = 0, 
+							 text = "")
+    } else {
+        clean_text <- NULL
+        for (i in 1:length(text)) {
+            clean_text <- c(clean_text, Clean_String(text[i]))
+        }
+        num_tok <- length(clean_text)
+        num_uniq <- length(unique(clean_text))
+        to_return <- list(num_tokens = num_tok, 
+		                     unique_tokens = num_uniq,
+							 text = clean_text)
+    }
+	
+    return(to_return)
+}
+# Source: http://www.mjdenny.com/Text_Processing_In_R.html # 
+
+
+clean_data = as.list(apply(rawrows,2,function(x)Clean_Text_Block(x)))
+```
+
+#Building Corpus
+```{r}
+
+corpus = Corpus(VectorSource(clean_data))
+corpus = tm_map(corpus,FUN = content_transformer(tolower))
+corpus = tm_map(corpus,
+                FUN = content_transformer(FUN = function(x)gsub(pattern = 'http[[:alnum:][:punct:]]*',
+                                                                replacement = ' ',x = x)))
+corpus = tm_map(corpus,FUN = removePunctuation)
+corpus = tm_map(corpus,FUN = removeWords,c(stopwords('english')))
+corpus = tm_map(corpus,FUN = stripWhitespace)
+dtm = DocumentTermMatrix(corpus)
+dict = findFreqTerms(DocumentTermMatrix(corpus),
+                     lowfreq = 0)
+dict_corpus = Corpus(VectorSource(dict))
+xdtm = removeSparseTerms(dtm,sparse = 0.95)
+
+dtm_tfidf = DocumentTermMatrix(x=corpus,
+                               control = list(weighting=function(x) weightTfIdf(x,normalize=F)))
+xdtm_tfidf = removeSparseTerms(dtm_tfidf,sparse = 0.95)
+xdtm_tfidf = as.data.frame(as.matrix(xdtm_tfidf))
+names(xdtm_tfidf)= gsub( "X.", "",names(xdtm_tfidf))
+sort(colSums(xdtm_tfidf),decreasing = T)
+
+xdtm_tfidf$column = names(rawrows)
+xdtm_tfidf = t(xdtm_tfidf)
+xdtm_tfidf = as.data.frame(xdtm_tfidf)
+xdtm_tfidf2 = rownames(xdtm_tfidf)
+xdtm_tfidf= apply(xdtm_tfidf,2,function(x)as.numeric(x))
+xdtm_tfidf = as.data.frame(xdtm_tfidf)
+xdtm_tfidf$multiplier = rowMeans(xdtm_tfidf)
+xdtm_tfidf = cbind(xdtm_tfidf, word = xdtm_tfidf2)
+#Calculating weighted columns
+corp_df = as.data.frame(corpus$content)
+corp_df$column = names(rawrows)
+corp_df$`corpus$content` = as.vector(corp_df$`corpus$content`)
+corp_df2 = corp_df %>%
+  unnest_tokens(word, `corpus$content`) %>%
+  group_by(column) %>%
+  count(word, sort = TRUE)
+
+corp_df = inner_join(corp_df2, xdtm_tfidf)
+corp_df$scores = corp_df$n*corp_df$multiplier
+corp_df[,2:38] = NULL
+pivot = summarise(corp_df, sum_amount = sum(scores))
+row.names(pivot) = pivot$column
+pivot$column= NULL
+pivot = t(pivot)
+pivot = as.data.frame(pivot)
+
+```
+
+#Sentiment Analysis
+```{r}
+
+library(syuzhet)
+
+mat = as.matrix(apply(rawrows,2,function(x)get_sentiment(x, method = "syuzhet")))
+
+mat2 = as.matrix(apply(rawrows,2,function(x)get_sentiment(x, method = "afinn")))
+mat3 = as.matrix(apply(rawrows,2,function(x)get_sentiment(x, method = "nrc")))
+mat4 = as.matrix(apply(rawrows,2,function(x)get_sentiment(x, method = "bing")))
+```
+
+#Combine scores - Totals indicate each sentiment method
+```{r}
+
+gov_data_scores <- rbind(mat,mat2,mat3,mat4)
+gov_data_scores = as.data.frame(gov_data_scores)
+
+#View correlations of sentiment in document
+cor(gov_data_scores)
+corrplot(cor(gov_data_scores))
+```
+
+
+#Prepare for predictions - scaling w/ term frequency and character lengths
+```{r}
+library(mice)
+
+lengths = as.matrix(apply(rawrows,2,function(x)nchar(x)))
+
+gov_data_stats = cbind(lengths, pivot, mat) #mat2, mat3, depending on sentiment
+gov_data_stats = as.data.frame(gov_data_stats)
+gov_data_stats$Award = predata$`predata`
+
+```
+
+# Predictive Model
+```{r}
+library(randomForest)
+library(caret)
+
+set.seed(522)
+split = createDataPartition(y=gov_data_stats$Award,p = 0.7,list = F,groups = 100)
+train = gov_data[split,]
+test = gov_data[-split,]
+
+rf = randomForest(Award~., train)
+
+predForest = predict(rf,newdata=test)
+rmse = sqrt(mean((predForest - test$Award)^2)) 
+plot(rf)
+```
+```
