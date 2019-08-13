@@ -18,11 +18,13 @@ library(textclean)
 library(tidytext)
 library(dplyr)
 library(tm)
+library(splitstackshape)
 ```
 
 #Split data
 
 ```{r}
+tokens = c("list","act","description","awarded","lump","other","isApplicable", "est", stopwords)
 
 goodrows = cbind(gov_data[,0:2], gov_data[,37])
 rawrows = gov_data[,3:38] 
@@ -39,10 +41,11 @@ library(splitstackshape)
 Award = apply(Award,2,function(x)replace_tokens(x, tokens))
 Award = as.data.frame(Award)
 Award = cSplit(Award, "Obligations (122)", sep="FY ", type.convert=FALSE)
-Award = Award[,3:183]
+Award = Award[,3]
 Award = apply(Award,2,function(x)substring(x, 3))
 Award = apply(Award,2,function(x)strip(x,char.keep = '.',digit.remove = FALSE, apostrophe.remove = FALSE, lower.case = FALSE))
 Award = gsub(' ',"",Award)
+Award = gsub('.00 ',"",Award)
 Award = gsub("[^0-9.-]", "", Award)
 Award = apply(Award,2,function(x)as.numeric(x))
 Award[is.na(Award)] <- 0
@@ -53,16 +56,16 @@ Award = as.data.frame(Award)
 
 #Prepare text columns for corpus
 ```{r}
-rawrows = do.call(paste, as.data.frame(rawrows, stringsAsFactors=FALSE))
-rawrows = as.data.frame(rawrows)
-gov_data = cbind(goodrows, rawrows, Award)
+corpusdat = do.call(paste, as.data.frame(rawrows, stringsAsFactors=FALSE))
+corpusdat = as.data.frame(corpusdat)
+gov_data = cbind(goodrows, corpusdat, Award)
 ```
 
 
 #Building Corpus
 ```{r}
 
-corpus = Corpus(VectorSource(gov_data$rawrows))
+corpus = Corpus(VectorSource(gov_data$corpusdat))
 corpus = tm_map(corpus,FUN = content_transformer(tolower))
 corpus = tm_map(corpus,
                 FUN = content_transformer(FUN = function(x)gsub(pattern = 'http[[:alnum:][:punct:]]*',
@@ -107,7 +110,7 @@ nrc = cbind(nrc, Award= Award$Award)
 nrc = as.data.frame(nrc)
 
 bing = as.matrix(apply(rawrows,2,function(x)get_sentiment(x, method = "bing")))
-bing = cbind(bing, Award= ward$Award)
+bing = cbind(bing, Award= Award$Award)
 bing = as.data.frame(bing)
 
 lengths = as.matrix(apply(rawrows,2,function(x)nchar(x)))
@@ -127,8 +130,8 @@ lengths
 xdtm_tfidf
 
 
-#View correlations in document
-cor(xdtm_tfidf, xdtm_tfidf$Award)
+#View correlations in document - e.g...
+cor(syuzhet, syuzhet$Award)
 corrplot(cor(syuzhet))
 ```
 
@@ -137,15 +140,16 @@ corrplot(cor(syuzhet))
 library(randomForest)
 library(caret)
 
+                         
 set.seed(522)
 split = createDataPartition(y=xdtm_tfidf$Award,p = 0.7,list = F,groups = 100)
 train = xdtm_tfidf[split,]
 test = xdtm_tfidf[-split,]
 
-rf = randomForest(Award~., train)
+rfdt = randomForest(Award~., train)
 
-predForest = predict(rf,newdata=test)
+predForest = predict(rfdt,newdata=test)
 rmse = sqrt(mean((predForest - test$Award)^2)) 
-plot(rf)
+plot(rfdt)
 ```
 ```
